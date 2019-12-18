@@ -1,0 +1,31 @@
+version: '3.7'
+services:
+  mongo:
+    container_name: mongo-con
+    restart: unless-stopped
+    image: mongo
+    command: --tlsMode disabled
+    tty: true
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - db-data:/data/db
+    networks:
+      tunes-net:
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongoex-con
+    depends_on:
+      - mongo
+    restart: always
+    ports:
+      - 8081:8081
+    networks:
+      tunes-net:
+
+networks:
+  tunes-net:
+
+volumes:
+  db-data:
