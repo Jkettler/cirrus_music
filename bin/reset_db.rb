@@ -1,5 +1,4 @@
-
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 
 require 'mongo'
 require_relative '../lib/connection'

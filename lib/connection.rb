@@ -1,10 +1,11 @@
 require 'mongo'
 
+# shamelessly stolen from https://github.com/steveren/ruby-driver-sample-app/blob/master/lib/connection.rb
 class Connection
 
   def initialize
     # set logger level to FATAL (only show serious errors)
-    Mongo::Logger.logger.level = ::Logger::FATAL
+    Mongo::Logger.logger.level = ::Logger::ERROR
 
     # set up a connection to the mongod instance which is running in a docker container, but with ports mapped
     # such that it appears to be running locally on the default port 27017

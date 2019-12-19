@@ -1,84 +1,16 @@
 #!/usr/bin/env ruby
 
-require 'open-uri'
 require 'mongo'
 require_relative './lib/connection'
-require_relative './lib/cli_options'
-Dir[File.join(__dir__, 'lib', 'parse', '*.rb')].each { |file| require_relative file }
+require_relative './lib/cli_options' # defines @options object used throughout
+Dir[File.join(__dir__, 'models', 'etl_managers', '*.rb')].each { |file| require_relative file }
 
-
-MONGO_INSERT_LIMIT = 100_000
 @connection = Connection.new
-
-
-# TODO for v2: benchmark multithreading to see if it's beneficial
-def import_artists
-  threads = []
-  artists = @connection.artists
-
-  begin
-    open(File.join('.','dumps', 'unique_artists.txt')) do |file|
-      file.each_slice(MONGO_INSERT_LIMIT) do |lotta_lines|
-        threads << Thread.new {
-          result = artists.insert_many(MsdArtistsParser.new(lotta_lines).parse)
-          puts "inserted #{result.inserted_count} docs into :artists collection"
-        }
-      end
-    end
-    threads.each(&:join)
-  rescue OpenURI::HTTPError => e
-    return @options[:noisy] ? e : nil
-  end
-end
-
-def import_cliques
-  threads = []
-  cliques = @connection.cliques
-  header_sym = '%'
-  comment_sym = '#'
-  chunk_size = 100
-
-  begin
-    open(File.join('.','dumps', 'cliques.txt')) do |file|
-      lines = []
-      clique_chunk = []
-      file.each_line do |line|
-        line.strip!
-        first_char = line[0]
-
-        next if first_char.nil?
-        next if first_char == comment_sym
-
-        if (first_char == header_sym) && lines.any?
-          clique_chunk << {performances: TrainingDataParser.new(lines.slice(1, lines.length)).parse}
-          lines = [line]
-        else
-          lines << line
-        end
-
-        if (clique_chunk.length >= chunk_size) || file.eof?
-          threads << Thread.new {
-            result = cliques.insert_many(clique_chunk)
-            puts "inserted #{result.inserted_count} docs into :cliques collection (chunk size: #{clique_chunk})" if @options[:noisy]
-          }
-          clique_chunk = []
-        end
-      end
-    end
-    threads.each(&:join)
-  rescue OpenURI::HTTPError => e
-    return @options[:noisy] ? e : nil
-  end
-
-end
-
-def import_tracks
-
-end
 
 def create_indexes
   artists = @connection.artists
   cliques = @connection.cliques
+  tracks = @connection.tracks
 
   artists.indexes.create_many(
     [
@@ -92,20 +24,54 @@ def create_indexes
       { :key => { track_id: 1 }}
     ]
   )
+  tracks.indexes.create_many(
+    [
+      { :key => { artist_string: 1 }},
+      { :key => { track_title: 1 }},
+      { :key => { track_id: 1 }}
+    ]
+  )
+end
+
+def init_all
+  threads = []
+  threads << Thread.new do
+    puts "populating tracks, local: #{@options[:local]}"
+    MSDTrackManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+    puts "finished populating tracks"
+  end
+  threads << Thread.new do
+    puts "populating artists, local: #{@options[:local]}"
+    MSDArtistManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+    puts "finished populating artists"
+  end
+  threads << Thread.new do
+    puts "populating cliques, local: #{@options[:local]}"
+    TrainingDataManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+    puts "finished populating cliques"
+  end
+  threads.each(&:join)
 end
 
 case ARGV[0]
 when nil
-  # puts @opts_parser
-  import_cliques
-when 'init'
+  puts @opts_parser
+when 'destroy-db-data'
+  @connection.artists.drop
+  @connection.cliques.drop
+  @connection.tracks.drop
+when 'create-indexes'
   create_indexes
-when 'tracks'
-  import_tracks
-when 'artists'
-  import_artists
-when 'cliques'
-  import_cliques
+when 'create-tracks'
+  MSDTrackManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+when 'create-artists'
+  puts "populating artists, local: #{@options[:local]}"
+  MSDArtistManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+when 'create-cliques'
+  TrainingDataManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+when 'init'
+  init_all
+  # create_indexes
 else
 
 end
