@@ -36,8 +36,10 @@ class ETLManager
         file.set_encoding(Encoding.default_external)
         file.each_slice(self.slice) do |lotta_lines|
           threads << Thread.new {
+            starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
             result = collection.insert_many(parse(lotta_lines, self.scheme, self.delimiter), ordered: false)
-            puts "inserted #{result.inserted_count} #{self.collection} into db" if noisy
+            ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            puts "Parsing and inserting #{result.inserted_count} #{self.collection} into mongo took #{(ending - starting).round(3)} seconds" if noisy
           }
         end
       end

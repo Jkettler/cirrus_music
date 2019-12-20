@@ -12,7 +12,7 @@ Dir[File.join(__dir__, 'models', '*.rb')].each { |file| require_relative file }
 def create_indexes
   artists = @connection.artists
   tracks = @connection.tracks
-
+  starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   artists.indexes.create_many(
     [
       { :key => { artist_string: 'text'}},
@@ -25,11 +25,13 @@ def create_indexes
       { :key => { track_id: 1 }}
     ]
   )
+  ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  puts "Creating indexes took #{(ending - starting).round(3)} seconds" if @options[:noisy]
 end
 
 def init_all
   threads = []
-
+  starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   if Artist.collection_size == 0
     threads << Thread.new do
       MSDArtistManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
@@ -49,6 +51,8 @@ def init_all
     puts "Tracks exist already! Skipping..."
   end
   threads.each(&:join)
+  ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  puts "Parsing and importing of all files took #{(ending - starting).round(3)} seconds" if @options[:noisy]
 end
 
 def clear_database

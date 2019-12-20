@@ -3,7 +3,7 @@ require 'optparse'
 @options = {}
 
 @opts_parser = OptionParser.new do |opt|
-  opt.banner = 'Usage: msearch.rb [-hln] [COMMAND]'
+  opt.banner = 'Usage: ./msearch.rb [-hln] [COMMAND]'
   opt.separator ''
   opt.separator '** If this is your first time running this, make sure you\'ve run the build script in /bin first! **'
   opt.separator '** Everything in this script assumes the build script completed successfully and mongo is running in a docker container **'
