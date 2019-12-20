@@ -4,7 +4,7 @@ require 'mongo'
 require 'pp'
 
 Dir[File.join(__dir__, 'lib', '*.rb')].each { |file| require_relative file }
-Dir[File.join(__dir__, 'lib', 'etl_managers', '*.rb')].each { |file| require_relative file }
+Dir[File.join(__dir__, 'lib', 'managers', '*.rb')].each { |file| require_relative file }
 Dir[File.join(__dir__, 'models', '*.rb')].each { |file| require_relative file }
 
 @connection = Connection.new

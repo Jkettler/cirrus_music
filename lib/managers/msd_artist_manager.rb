@@ -1,4 +1,4 @@
-
+require_relative "./etl_manager"
 class MSDArtistManager < ETLManager
 
   ARTISTS_LOCAL = File.join('.','dumps', 'unique_artists.txt')
