@@ -3,13 +3,13 @@ require 'optparse'
 @options = {}
 
 @opts_parser = OptionParser.new do |opt|
-  opt.banner = 'Usage: msearch.rb [-options] [COMMAND] [ARG]'
+  opt.banner = 'Usage: msearch.rb [-hln] [COMMAND]'
   opt.separator ''
-  opt.separator '** If this is your first time running this, you\'ve run the build script in /bin first! **'
-  opt.separator '** Everything in this script assumes the build script completed successfully and mongo is running in a container **'
+  opt.separator '** If this is your first time running this, make sure you\'ve run the build script in /bin first! **'
+  opt.separator '** Everything in this script assumes the build script completed successfully and mongo is running in a docker container **'
   opt.separator ''
   opt.separator 'Commands'
-  opt.separator '   artist artist_name: provide a first, last, or group name to search for song performances'
+  opt.separator '   search: begin REPL mode to query artist info'
   opt.separator ''
   opt.separator '   create-indexes: (re)create mongo db indexes'
   opt.separator '   create-artists: (re)create mongo db artist data'
@@ -21,7 +21,7 @@ require 'optparse'
   opt.separator 'Options'
 
   opt.on('-h', '--help', 'help') do
-    puts opt_parser
+    puts @opts_parser
   end
 
   opt.on('-l', '--local', 'use local files located in "cirrus_music/dumps/"') do

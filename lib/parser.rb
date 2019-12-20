@@ -28,7 +28,7 @@ module Parser
 
   def line_to_object(line, separator, scheme)
     result = {}
-    line.split(separator).each_with_index do |col_val, idx|
+    line.to_s.split(separator).each_with_index do |col_val, idx|
       result[scheme[idx].to_sym] = col_val.strip  if scheme[idx]
     end
     result

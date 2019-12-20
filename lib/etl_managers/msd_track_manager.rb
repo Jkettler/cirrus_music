@@ -11,6 +11,7 @@ class MSDTrackManager < ETLManager
     scheme = [:track_id, nil, :artist_string, :track_title]
     location = local ? TRACKS_LOCAL : TRACKS_REMOTE
 
-    super(:tracks, location, scheme)
+    # initialize(collection, file_location, scheme, slice = 10_000, delimiter = DEFAULT_DELIMITER)
+    super(:tracks, location, scheme, 100_000)
   end
 end

@@ -1,4 +1,0 @@
-class Clique
-
-
-end

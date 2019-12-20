@@ -7,11 +7,9 @@ require 'open-uri'
 
 class ETLManager
 
-
   include Parser
 
   DEFAULT_DELIMITER = '<SEP>'.freeze
-  MONGO_MAX_INSERT_SIZE = 100_000
   RESCUES = [OpenURI::HTTPError]
 
   # Params:
@@ -23,7 +21,7 @@ class ETLManager
   #
   attr_reader :collection, :file_location, :delimiter, :slice, :scheme, :skip_symbols
 
-  def initialize(collection, file_location, scheme, skip_symbols = [], slice = MONGO_MAX_INSERT_SIZE, delimiter = DEFAULT_DELIMITER)
+  def initialize(collection, file_location, scheme, slice = 10_000, delimiter = DEFAULT_DELIMITER)
     @collection = collection
     @file_location = file_location
     @scheme = scheme
@@ -38,10 +36,16 @@ class ETLManager
 
     begin
       open(self.file_location) do |file|
+        file.set_encoding(Encoding.default_external)
         file.each_slice(self.slice) do |lotta_lines|
           threads << Thread.new {
-            result = collection.insert_many(parse(lotta_lines, self.scheme, self.delimiter))
-            puts "inserted #{result.inserted_count} #{self.collection} into db" if noisy
+            begin
+              parsed = parse(lotta_lines, self.scheme, self.delimiter)
+              result = collection.insert_many(parsed, ordered: false)
+              puts "inserted #{result.inserted_count} #{self.collection} into db" if noisy
+            rescue Encoding::UndefinedConversionError => e
+              puts "#{e}"
+            end
           }
         end
       end

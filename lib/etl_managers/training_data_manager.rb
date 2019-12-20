@@ -1,9 +1,10 @@
 
 class TrainingDataManager < ETLManager
-  attr_reader :slice_token, :comment_token
 
   REMOTE = 'https://raw.githubusercontent.com/tbertinmahieux/MSongsDB/master/Tasks_Demos/CoverSongs/shs_dataset_train.txt'.freeze
   LOCAL = File.join('.','dumps', 'cliques.txt')
+
+  attr_reader :slice_token, :comment_token
 
   def initialize(local = false)
     @slice_token = "%"
@@ -11,7 +12,7 @@ class TrainingDataManager < ETLManager
     scheme = [:track_id, :artist_id, nil]
     location = local ? LOCAL : REMOTE
 
-    super(:cliques, location, scheme, %w(% #))
+    super(:cliques, location, scheme)
   end
 
   def threaded_etl(connection, noisy = false)
@@ -23,6 +24,7 @@ class TrainingDataManager < ETLManager
 
     begin
       open(self.file_location) do |file|
+        file.set_encoding(Encoding.default_external)
         lines = []
         clique_chunk = []
         file.each_line do |line|
@@ -45,13 +47,13 @@ class TrainingDataManager < ETLManager
         end
       end
 
-      thread = Thread.new{
+      thread = Thread.new do
         while e = queue.deq # wait for nil to break loop
           Thread::exit if e.nil?
           result = collection.insert_many(e)
           puts "inserted #{result.inserted_count} #{self.collection} into the db" if noisy
         end
-      }
+      end
       queue.close
       thread.join
     rescue Exception => e

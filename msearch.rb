@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 
 require 'mongo'
-require_relative './lib/connection'
-require_relative './lib/cli_options' # defines @options object used throughout
-Dir[File.join(__dir__, 'models', 'etl_managers', '*.rb')].each { |file| require_relative file }
+require 'pp'
+
+Dir[File.join(__dir__, 'lib', '*.rb')].each { |file| require_relative file }
+Dir[File.join(__dir__, 'lib', 'etl_managers', '*.rb')].each { |file| require_relative file }
+Dir[File.join(__dir__, 'models', '*.rb')].each { |file| require_relative file }
 
 @connection = Connection.new
 
@@ -14,7 +16,7 @@ def create_indexes
 
   artists.indexes.create_many(
     [
-      { :key => { artist_string: 1 }},
+      { :key => { artist_string: 'text'}},
       { :key => { artist_id: 1 }},
     ])
 
@@ -26,8 +28,7 @@ def create_indexes
   )
   tracks.indexes.create_many(
     [
-      { :key => { artist_string: 1 }},
-      { :key => { track_title: 1 }},
+      { :key => { "$**" => "text" }},
       { :key => { track_id: 1 }}
     ]
   )
@@ -35,47 +36,90 @@ end
 
 def init_all
   threads = []
-  threads << Thread.new do
-    puts "populating tracks, local: #{@options[:local]}"
-    MSDTrackManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-    puts "finished populating tracks"
+
+  if Artist.collection_size == 0
+    threads << Thread.new do
+      MSDArtistManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+      puts "Finished populating artists"
+    end
+  else
+    puts "Artists exist already! Skipping..."
   end
-  threads << Thread.new do
-    puts "populating artists, local: #{@options[:local]}"
-    MSDArtistManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-    puts "finished populating artists"
+
+  if Clique.collection_size == 0
+    threads << Thread.new do
+      TrainingDataManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+      puts "Finished populating cliques"
+    end
+  else
+    puts "Cliques exist already! Skipping..."
   end
-  threads << Thread.new do
-    puts "populating cliques, local: #{@options[:local]}"
-    TrainingDataManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-    puts "finished populating cliques"
+
+  if Track.collection_size == 0
+    threads << Thread.new do
+      puts "Importing tracks. This one takes a minute..."
+      MSDTrackManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
+      puts "Finished populating tracks"
+    end
+  else
+    puts "Tracks exist already! Skipping..."
   end
   threads.each(&:join)
 end
 
-case ARGV[0]
-when nil
-  puts @opts_parser
-when 'destroy-db-data'
-  @connection.artists.drop
-  @connection.cliques.drop
-  @connection.tracks.drop
-when 'create-indexes'
-  create_indexes
-when 'create-tracks'
-  MSDTrackManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-when 'create-artists'
-  puts "populating artists, local: #{@options[:local]}"
-  MSDArtistManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-when 'create-cliques'
-  TrainingDataManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-when 'init'
-  init_all
-  # create_indexes
-else
+def clear_database
+  [:artists, :cliques, :tracks].each do |model|
+    @connection.send(model).drop
+  end
+end
 
+def model_etl(model)
+  model.send(:new, @options[:local]).threaded_etl(@connection, @options[:noisy])
 end
 
 
+case ARGV[0]
+when nil
+  # puts @opts_parser
+  puts Artist.collection_size
+
+when 'counts'
+  puts "Artists: #{Artist.collection_size}"
+  puts "Cliques: #{Clique.collection_size}"
+  puts "Tracks: #{Track.collection_size}"
+
+when 'destroy-db-data'
+  puts "I hope you know what you're doing.." if @options[:noisy]
+  clear_database
+
+when 'init'
+  init_all
+  puts "Creating indexes..."
+  create_indexes
+  puts "Done!"
+
+when 'search'
+  @prompt = REPL::INITIAL_PROMPT
+
+  repl = -> prompt do
+    print prompt
+    input = $stdin.gets.chomp!
+    if input == "exit"
+      return nil
+    else
+      REPL.handle_search_input(input)
+    end
+  end
+
+  loop do
+    res = repl[@prompt]
+    if res.nil?
+      puts "Goodbye!"
+      break
+    end
+  end
+end
+
 # db.cliques.find({"performances": {"track_id": "TRWFVNB12903CAAACF", "artist_id": "ARODTXM1187B9B7855"}})
 # db.cliques.find({"performances.artist_id": {"$eq": "ARODTXM1187B9B7855"}})
+# db.cliques.find({"performances.artist_id": {"$eq": "ARW9QSZ1187FB4B93E"}})
