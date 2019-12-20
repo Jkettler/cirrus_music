@@ -1,11 +1,11 @@
-##Prereqs:
+## Prereqs:
 - Docker
 - I was using ruby 2.6.2 when I wrote this, but I imagine it's pretty backward compatible.
 
-##Build Instructions  
+## Build Instructions  
 Run the build script `./bin/build.sh`
 
-##Usage
+## Usage
 
 ```
 msearch.rb [-hln] [COMMAND]
