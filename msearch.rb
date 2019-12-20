@@ -11,7 +11,6 @@ Dir[File.join(__dir__, 'models', '*.rb')].each { |file| require_relative file }
 
 def create_indexes
   artists = @connection.artists
-  cliques = @connection.cliques
   tracks = @connection.tracks
 
   artists.indexes.create_many(
@@ -20,12 +19,6 @@ def create_indexes
       { :key => { artist_id: 1 }},
     ])
 
-  cliques.indexes.create_many(
-    [
-      { :key => { artist_id: 1 }},
-      { :key => { track_id: 1 }}
-    ]
-  )
   tracks.indexes.create_many(
     [
       { :key => { "$**" => "text" }},
@@ -46,15 +39,6 @@ def init_all
     puts "Artists exist already! Skipping..."
   end
 
-  if Clique.collection_size == 0
-    threads << Thread.new do
-      TrainingDataManager.new(@options[:local]).threaded_etl(@connection, @options[:noisy])
-      puts "Finished populating cliques"
-    end
-  else
-    puts "Cliques exist already! Skipping..."
-  end
-
   if Track.collection_size == 0
     threads << Thread.new do
       puts "Importing tracks. This one takes a minute..."
@@ -68,7 +52,7 @@ def init_all
 end
 
 def clear_database
-  [:artists, :cliques, :tracks].each do |model|
+  [:artists, :tracks].each do |model|
     @connection.send(model).drop
   end
 end
@@ -80,16 +64,14 @@ end
 
 case ARGV[0]
 when nil
-  # puts @opts_parser
-  puts Artist.collection_size
+  puts @opts_parser
 
 when 'counts'
   puts "Artists: #{Artist.collection_size}"
-  puts "Cliques: #{Clique.collection_size}"
   puts "Tracks: #{Track.collection_size}"
 
-when 'destroy-db-data'
-  puts "I hope you know what you're doing.." if @options[:noisy]
+when 'clear-db'
+  puts "I hope you know what you're doing.."
   clear_database
 
 when 'init'
@@ -99,12 +81,11 @@ when 'init'
   puts "Done!"
 
 when 'search'
-  @prompt = REPL::INITIAL_PROMPT
 
   repl = -> prompt do
     print prompt
     input = $stdin.gets.chomp!
-    if input == "exit"
+    if input == "exit()"
       return nil
     else
       REPL.handle_search_input(input)
@@ -112,14 +93,10 @@ when 'search'
   end
 
   loop do
-    res = repl[@prompt]
+    res = repl[REPL::INITIAL_PROMPT]
     if res.nil?
       puts "Goodbye!"
       break
     end
   end
 end
-
-# db.cliques.find({"performances": {"track_id": "TRWFVNB12903CAAACF", "artist_id": "ARODTXM1187B9B7855"}})
-# db.cliques.find({"performances.artist_id": {"$eq": "ARODTXM1187B9B7855"}})
-# db.cliques.find({"performances.artist_id": {"$eq": "ARW9QSZ1187FB4B93E"}})

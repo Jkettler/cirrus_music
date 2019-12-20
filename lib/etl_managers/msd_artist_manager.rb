@@ -1,3 +1,4 @@
+
 class MSDArtistManager < ETLManager
 
   ARTISTS_LOCAL = File.join('.','dumps', 'unique_artists.txt')
