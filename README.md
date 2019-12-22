@@ -14,13 +14,13 @@ You may need to run this with `sudo` depending on your environment: \
 
 ## Usage
 
-`./msearch [-ln] init` - Wait for Extract, Translate, Load from sources and build indexes.
+`./msearch.rb [-ln] init` - Wait for Extract, Translate, Load from sources and build indexes.
 I recommend running with the `-n` (noisy) option at first so you see info/timers, 
 and with `-l` (use local sources) since I have copies of the data in the project anyway (for better or worse).
 
-`./msearch search` - Enter a Read, Evaluate, Print, Loop where you can search artist names. Type `exit()` to quit.
+`./msearch.rb search` - Enter a Read, Evaluate, Print, Loop where you can search artist names. Type `exit()` to quit.
 
-`./msearch` (no args) or `./msearch -h` will show you: 
+`./msearch.rb` (no args) or `./msearch.rb -h` will show you: 
 
 
 ```
